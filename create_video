@@ -1,0 +1,101 @@
+#!/bin/bash
+# This script falls under the GNU General Public License.
+#     http://www.gnu.org/copyleft/gpl.html
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+#
+# create_video -- create a video for a number of repos passed as arguments
+#
+#     2016 by Hagen Pache
+#     https://github.com/beardedN5rd
+
+function show_info()
+{
+	cat <<EOF
+Script to generate repository changes.
+
+usage: $(basename $0) {options} [repos ...]
+
+options:
+  --start-date          YYYY-MM-DD
+  --stop-date           YYYY-MM-DD [optional]
+
+pass absolute paths to repositories
+
+EOF
+}
+
+function generate_logs()
+{
+	echo "Generate logs"
+	for REPO in "${REPOS[@]}"
+	do
+		echo "    add log for ${REPO}"
+		REPO_BASE=$(basename $REPO)
+		gource --output-custom-log ${REPO_BASE}.log ${REPO}
+		cat ${REPO_BASE}.log >> tmp.log
+		rm ${REPO_BASE}.log
+	done
+	sort -n tmp.log > repos.log
+	rm tmp.log
+}
+
+function generate_video()
+{
+	echo "Generate video"
+	START_DATE=
+	if [ ! -z "${START}" ];
+	then
+		START_DATE="--start-date ${START}"
+	fi
+
+	STOP_DATE=
+	if [ ! -z "${STOP}" ];
+	then
+		STOP_DATE="--stop-date ${STOP}"
+	fi
+
+	gource --auto-skip-seconds 1 --hide date,dirnames,filenames,progress,usernames -w 768x1024 ${START_DATE} ${STOP_DATE} repos.log  -o repos.ppm
+	rm repos.log
+}
+
+function convert_video()
+{
+	echo "Convert video"
+	ffmpeg -y -r 60 -f image2pipe -vcodec ppm -i repos.ppm -vcodec libx264 -preset ultrafast -pix_fmt yuv420p -crf 1 -threads 0 -bf 0 repos_${START}.mp4
+	rm *.ppm
+}
+
+START=
+STOP=
+REPOS=()
+while [ $# -ge 1 ] ; do
+	case "$1" in
+		--start-date)
+			START=$2
+			shift 1
+			;;
+		--stop-date)
+			STOP=$2
+			shift 1
+			;;
+		--help|-h)
+			show_info
+			;;
+		*)
+			REPOS+=($1)
+			;;
+	esac
+	shift 1
+done
+
+export LC_ALL="en_US.UTF-8"
+
+generate_logs
+generate_video
+convert_video

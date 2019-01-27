@@ -1,0 +1,20 @@
+#!/bin/bash
+
+function run()
+{
+  docker run -it \
+  -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix --user=$(id -u):$(id -g) -e XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR \
+  -v ${DIRECTORY}:/codearea/ -v `pwd`:/workdir/ -w /workdir/ gource:bionic /bin/bash
+}
+
+while getopts :d option
+  do
+    case "${option}" in
+      d)  DIRECTORY=${OPTARG};;
+    esac
+done
+
+if [ -d ${DIRECTORY} ]
+  then
+    run
+fi
